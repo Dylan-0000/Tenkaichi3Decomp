@@ -982,9 +982,12 @@ static void vif(const uint32_t *w, uint32_t count) {
         imm = code & 0xFFFF;
         sStat[1]++;
         pend = code;
-        if (getenv("BT3_VU_TRACE") != NULL && traceCommands++ < 256) {
-            fprintf(stderr, "vu1 trace: vif frame=%u cmd=%02x num=%u imm=%04x remaining=%u\n",
-                sFrame, cmd, num, imm, count - i);
+        if (getenv("BT3_VU_TRACE") != NULL) {
+            unsigned traceIndex = traceCommands++;
+            if (traceIndex < 256 || cmd == 0x4A || cmd == 0x14 || cmd == 0x15 || cmd == 0x17) {
+                fprintf(stderr, "vu1 trace: vif frame=%u cmd=%02x num=%u imm=%04x remaining=%u\n",
+                        sFrame, cmd, num, imm, count - i);
+            }
         }
         if (sDumpFrame == (int)sFrame && cmd != 0 && cmd != 0x50) {
             fprintf(stderr, "  vif %02x num %3u imm %04x\n", cmd, num, imm);
