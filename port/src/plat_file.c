@@ -32,6 +32,20 @@ extern void Port_TestSlow(int what, int amount); /* gs/net.c: testing, a machine
 extern size_t Port_FileReadAt(const char *rel, long offset, void *buf, size_t bytes);
 
 static char sPartDir[8][64];
+extern int Port_Bt4Mode(void); /* plat_mem.c: the Tenkaichi 4 mod's data (BT3_BT4=1 or <root>/.bt4) */
+
+/* The folder of partition `ptid`. In BT4 mode the mod's four archives are always there as pzs4us0..3, also the
+   fourth, which the BT3 code never asks the game to load (its file system code is not in the decompilation). */
+static const char *part_dir(int ptid) {
+    static char sMod[8][16];
+    int p = ptid & 7;
+
+    if (sPartDir[p][0] == '\0' && p < 4 && Port_Bt4Mode()) {
+        snprintf(sMod[p], sizeof(sMod[p]), "pzs4us%d", p);
+        return sMod[p];
+    }
+    return sPartDir[p];
+}
 char gPortMoviePath[512]; /* host path of the movie file opened last */
 int Port_FilePath(int ptid, int flid, const char *fname, char *out, int size);
 extern void *Port_LowAlloc(size_t size); /* plat_mem.c */
@@ -108,7 +122,7 @@ int Port_FilePath(int ptid, int flid, const char *fname, char *out, int size) {
         }
         rel[n] = '\0';
     } else {
-        snprintf(rel, sizeof(rel), "%s/%05d.bin", sPartDir[ptid & 7], flid);
+        snprintf(rel, sizeof(rel), "%s/%05d.bin", part_dir(ptid), flid);
     }
     {
         /* The streamed audio (a song added from outside the disc) reads through this path, so the manifest's
@@ -158,13 +172,13 @@ int ADXF_LoadPartitionNw(int ptid, char *fname, void *dir, void *ptinfo) {
 }
 
 int ADXF_GetPtStat(int ptid) {
-    return sPartDir[ptid & 7][0] != '\0' ? STAT_READEND : STAT_STOP;
+    return part_dir(ptid)[0] != '\0' ? STAT_READEND : STAT_STOP;
 }
 
 void *ADXF_OpenAfs(int ptid, int flid) {
     char rel[128];
 
-    snprintf(rel, sizeof(rel), "%s/%05d.bin", sPartDir[ptid & 7], flid);
+    snprintf(rel, sizeof(rel), "%s/%05d.bin", part_dir(ptid), flid);
     return open_rel(rel);
 }
 

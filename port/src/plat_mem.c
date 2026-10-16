@@ -377,6 +377,33 @@ static uint8_t *read_file(const char *path, size_t *size) {
     return buf;
 }
 
+/* BT4 mode (the Tenkaichi 4 mod, an in-place patch of the same executable): on when BT3_BT4=1, or when <root>/.bt4
+   exists (written by port/tools/extract_disc_bt4.py). The two programs are then not the unmodified USA release: the
+   check below lets them through, the file layer (plat_file.c) serves the mod's four archives as pzs4us0..3, and
+   plat_verify.c marks the game data as modified (so no online play). Unsupported: the game's logic is still the
+   BT3 decompilation, so what the mod changed in code is not there. */
+int Port_Bt4Mode(void) {
+    static int mode = -1;
+
+    if (mode < 0) {
+        const char *env = getenv("BT3_BT4");
+        const char *root = getenv("BT3_DATA") != NULL ? getenv("BT3_DATA") : "gamedata";
+        char path[1200];
+        FILE *marker;
+
+        mode = (env != NULL && env[0] != '\0' && env[0] != '0') ? 1 : 0;
+        if (!mode) {
+            snprintf(path, sizeof(path), "%s/.bt4", root);
+            marker = fopen(path, "rb");
+            if (marker != NULL) {
+                fclose(marker);
+                mode = 1;
+            }
+        }
+    }
+    return mode;
+}
+
 static void data_fail(const char *what, const char *path) {
     fprintf(stderr, "bt3: %s%s%s\n     The game's data comes from your own disc image; run the setup (Tenkaichi3Decomp-setup) to unpack it.\n", what,
             path != NULL ? ": " : "", path != NULL ? path : "");
@@ -494,7 +521,12 @@ static void Port_LoadGameData(void) {
     free(src[1]);
     free(list);
     if (hash != want) {
-        data_fail("the game's programs in your game data are not the unmodified USA release (SLUS-21678)", NULL);
+        if (Port_Bt4Mode()) {
+            fprintf(stderr, "bt3: BT4 mode: the game's programs are not the unmodified USA release; going on with them "
+                            "(unsupported: the game's logic is the BT3 decompilation)\n");
+        } else {
+            data_fail("the game's programs in your game data are not the unmodified USA release (SLUS-21678)", NULL);
+        }
     }
 }
 

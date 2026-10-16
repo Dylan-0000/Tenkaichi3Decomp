@@ -32,6 +32,7 @@
 #include "plat_verify_tab.h"
 
 extern const char *Port_FileRoot(void); /* plat_file.c */
+extern int Port_Bt4Mode(void); /* plat_mem.c: the Tenkaichi 4 mod's data */
 extern void Port_UiNotice(const char *text); /* gs/ui.cpp */
 extern void PortFp_Run(int detail); /* plat_fprint.c: the gameplay fingerprint, computed on this thread */
 static int sCheck = 1; /* 0 with BT3_VERIFY=0: only the fingerprint */
@@ -140,6 +141,11 @@ static void *verify_thread(void *arg) {
     int n;
 
     (void)arg;
+    if (Port_Bt4Mode()) { /* the table below is the BT3 disc's: there is nothing to compare the mod's files with */
+        Port_UiNotice("BT4 mod mode: unofficial game data, not the original disc's. Glitches are expected.");
+        PortFp_Run(0);
+        return NULL;
+    }
     if (!sCheck) {
         PortFp_Run(0);
         return NULL;
@@ -284,6 +290,10 @@ void Port_VerifyStart(void) {
         sCheck = 0; /* no comparison with the disc, no notice; the fingerprint is still computed */
     }
     sState = sCheck ? DATA_CHECKING : DATA_OFF;
+    if (Port_Bt4Mode()) {
+        snprintf(sSummary, sizeof(sSummary), "modified game data: BT4 mod mode (not the original disc's)");
+        sState = DATA_MODIFIED; /* the window title and crash reports say so; the gameplay fingerprint will not match either */
+    }
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     if (pthread_create(&th, &attr, verify_thread, NULL) != 0) {
