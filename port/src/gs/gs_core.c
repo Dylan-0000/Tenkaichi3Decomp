@@ -925,6 +925,7 @@ void Gs_Gif(const uint8_t *p, uint32_t qwc) {
 static void vif(const uint32_t *w, uint32_t count) {
     static uint32_t direct;                    /* quadwords of GIF data still to come */
     static uint32_t pend, need, have, buf[2048]; /* a command waiting for `need` words of data */
+    static unsigned traceCommands;
     uint32_t i = 0;
 
     while (i < count) {
@@ -981,6 +982,10 @@ static void vif(const uint32_t *w, uint32_t count) {
         imm = code & 0xFFFF;
         sStat[1]++;
         pend = code;
+        if (getenv("BT3_VU_TRACE") != NULL && traceCommands++ < 256) {
+            fprintf(stderr, "vu1 trace: vif frame=%u cmd=%02x num=%u imm=%04x remaining=%u\n",
+                sFrame, cmd, num, imm, count - i);
+        }
         if (sDumpFrame == (int)sFrame && cmd != 0 && cmd != 0x50) {
             fprintf(stderr, "  vif %02x num %3u imm %04x\n", cmd, num, imm);
         }
