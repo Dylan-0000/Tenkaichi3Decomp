@@ -58,6 +58,7 @@ static unsigned sStatRuns, sStatInstr, sStatKicks;
 static unsigned sProgSize;
 static unsigned sHle; /* program calls served by shader versions this frame */
 static struct { unsigned size, runs, instr, kicks; } sProg[16]; /* per loaded program, this frame */
+static unsigned sProgUploadCount, sProgUploadedWords, sVuTraceCalls;
 
 static inline float clampf(float v) {
     uint32_t u;
@@ -84,6 +85,12 @@ void GsVu1_Program(uint32_t addr, const uint32_t *words, uint32_t count) {
     uint32_t i;
     /* which program is loaded: identified by its size in instructions (an upload at 0 starts a new one) */
     sProgSize = addr == 0 ? count / 2 : sProgSize + count / 2;
+    sProgUploadCount++;
+    sProgUploadedWords += count;
+    if (getenv("BT3_VU_TRACE") != NULL && sProgUploadCount <= 64) {
+        fprintf(stderr, "vu1 trace: MPG addr=%u words=%u program=%u total-uploads=%u total-words=%u\n",
+                addr, count, sProgSize, sProgUploadCount, sProgUploadedWords);
+    }
     for (i = 0; i < count; i++) {
         memcpy(&vu.micro[((addr * 8) + i * 4) & 0x3FFC], &words[i], 4);
     }
@@ -665,6 +672,10 @@ static int hle_program6(void) {
 void GsVu1_Call(int addr) {
     vu.top = vu.tops;
     vu.itop = vu.itops;
+    if (getenv("BT3_VU_TRACE") != NULL && sVuTraceCalls++ < 64) {
+        fprintf(stderr, "vu1 trace: call addr=%d pc=%u program=%u uploads=%u words=%u\n",
+                addr, vu.pc, sProgSize, sProgUploadCount, sProgUploadedWords);
+    }
     if (vu.dbf) {
         vu.tops = vu.base;
         vu.dbf = 0;
